@@ -1,0 +1,26 @@
+# Python
+backend/.env
+backend/venv/
+backend/__pycache__/
+__pycache__/
+*.pyc
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editor
+.vscode/
+frontend/.vscode/
+
+# Database / backup
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+*.sql
+
+# Logs
+*.log
