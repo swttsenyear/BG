@@ -1,26 +1,52 @@
-# Python
-backend/.env
+# =========================
+# Python / Backend
+# =========================
 backend/venv/
+backend/.venv/
 backend/__pycache__/
-__pycache__/
+backend/**/__pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 
-# Frontend
+# Environment files
+backend/.env
+frontend/.env
+.env
+.env.local
+
+# =========================
+# Node / Frontend
+# =========================
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
-
-# Editor
-.vscode/
-frontend/.vscode/
-
-# Database / backup
-*.db
-*.sqlite
-*.sqlite3
-*.dump
-*.backup
-*.sql
+frontend/.svelte-kit/
+frontend/build/
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# IDE / OS
+# =========================
+.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# =========================
+# Database backup
+# =========================
+*.sql
+*.sqlite
+*.db
+
+# Keep sample env if created
+!.env.example
+!backend/.env.example
+!frontend/.env.example
