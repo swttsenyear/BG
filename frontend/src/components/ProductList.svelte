@@ -1,44 +1,59 @@
 <script>
-  export let API_URL = "";
-
   /**
-   * @type {Array<{
-   *   id: number,
-   *   name: string,
-   *   category: string | null,
-   *   diamond_carat: number | null,
-   *   diamond_count: number | null,
-   *   material: string | null,
-   *   gold_type: string | null,
-   *   gold_weight: number | null,
-   *   diamond_color: string | null,
-   *   diamond_clarity: string | null,
-   *   barcode: string | null,
-   *   cost_code: string | null,
-   *   selling_point: string | null
-   * }>}
+   * @typedef {Object} Product
+   * @property {number} id
+   * @property {string} name
+   * @property {string | null} category
+   * @property {number | null} diamond_carat
+   * @property {number | null} diamond_count
+   * @property {string | null} material
+   * @property {string | null} gold_type
+   * @property {number | null} gold_weight
+   * @property {string | null} diamond_color
+   * @property {string | null} diamond_clarity
+   * @property {string | null} barcode
+   * @property {string | null} cost_code
+   * @property {string | null} selling_point
    */
+
+  export let API_URL = "";
+  export let canManageProducts = false;
+
+  /** @type {Product[]} */
   export let products = [];
 
   /** @type {() => void} */
-  export let onDataChanged;
-
-  const sampleImages = [
-    "/brand/product-ring.jpg",
-    "/brand/product-necklace.jpg",
-    "/brand/product-earrings.jpg",
-    "/brand/product-masterpiece.jpg"
-  ];
+  export let onDataChanged = () => {};
 
   /**
-   * @param {number} index
+   * @param {Product} product
+   * @returns {string}
    */
-  function getProductImage(index) {
-    return sampleImages[index % sampleImages.length];
+  function getProductImage(product) {
+    const name = (product.name || "").toLowerCase();
+    const category = (product.category || "").toLowerCase();
+
+    if (name.includes("brooch") || category.includes("brooch")) {
+      return "/brand/product-masterpiece.JPG";
+    }
+
+    if (name.includes("necklace") || category.includes("necklace")) {
+      return "/brand/product-necklace.jpg";
+    }
+
+    if (name.includes("earring") || category.includes("earring")) {
+      return "/brand/product-earrings.jpg";
+    }
+
+    if (name.includes("ring") || category.includes("ring")) {
+      return "/brand/product-ring.jpg";
+    }
+
+    return "/brand/product-masterpiece.JPG";
   }
 
   /**
-   * @param {any} product
+   * @param {Product} product
    */
   async function editProduct(product) {
     const name = prompt("แก้ชื่อสินค้า", product.name);
@@ -107,7 +122,7 @@
   }
 
   /**
-   * @param {any} product
+   * @param {Product} product
    */
   async function deleteProduct(product) {
     const confirmed = confirm(`ต้องการลบสินค้า "${product.name}" ใช่ไหม?`);
@@ -144,11 +159,11 @@
     </div>
   {:else}
     <div class="product-grid">
-      {#each products as product, index}
+      {#each products as product}
         <article class="product-card">
           <div
             class="product-visual"
-            style={`background-image: linear-gradient(180deg, rgba(5,5,5,0.02), rgba(5,5,5,0.62)), url('${getProductImage(index)}')`}
+            style={`background-image: linear-gradient(180deg, rgba(5,5,5,0.02), rgba(5,5,5,0.45)), url('${getProductImage(product)}')`}
           >
             <span>{product.category || "High Jewelry"}</span>
           </div>
@@ -188,23 +203,25 @@
               {product.selling_point || "ยังไม่มีจุดขายสินค้า"}
             </p>
 
-            <div class="actions">
-              <button
-                type="button"
-                class="secondary-button"
-                on:click={() => editProduct(product)}
-              >
-                แก้ไข
-              </button>
+            {#if canManageProducts}
+              <div class="actions">
+                <button
+                  type="button"
+                  class="secondary-button"
+                  on:click={() => editProduct(product)}
+                >
+                  แก้ไข
+                </button>
 
-              <button
-                type="button"
-                class="danger-button"
-                on:click={() => deleteProduct(product)}
-              >
-                ลบ
-              </button>
-            </div>
+                <button
+                  type="button"
+                  class="danger-button"
+                  on:click={() => deleteProduct(product)}
+                >
+                  ลบ
+                </button>
+              </div>
+            {/if}
           </div>
         </article>
       {/each}
@@ -260,9 +277,11 @@
   }
 
   .product-visual {
-    min-height: 260px;
-    background-size: cover;
+    height: 520px;
+    background-size: contain;
     background-position: center;
+    background-repeat: no-repeat;
+    background-color: #101820;
     color: #fff;
     display: flex;
     align-items: flex-end;
@@ -275,7 +294,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.18));
+    background: linear-gradient(180deg, transparent 65%, rgba(0,0,0,0.35));
   }
 
   .product-visual span {
@@ -357,6 +376,9 @@
 
   .actions {
     margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .empty-state {
@@ -391,6 +413,10 @@
 
     .spec-grid {
       grid-template-columns: 1fr;
+    }
+
+    .product-visual {
+      height: 420px;
     }
   }
 </style>

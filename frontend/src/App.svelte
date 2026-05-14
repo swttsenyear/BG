@@ -5,84 +5,250 @@
   import ToolsPage from "./pages/ToolsPage.svelte";
   import AdminPage from "./pages/AdminPage.svelte";
 
+  /**
+   * @typedef {Object} Position
+   * @property {number} id
+   * @property {string} code
+   * @property {string} name
+   * @property {string | null} description
+   */
+
+  /**
+   * @typedef {Object} Lesson
+   * @property {number} id
+   * @property {number} position_id
+   * @property {string} title
+   * @property {string | null} description
+   * @property {number} step_order
+   * @property {boolean} is_active
+   */
+
+  /**
+   * @typedef {Object} Product
+   * @property {number} id
+   * @property {string} name
+   * @property {string | null} category
+   * @property {number | null} diamond_carat
+   * @property {number | null} diamond_count
+   * @property {string | null} material
+   * @property {string | null} gold_type
+   * @property {number | null} gold_weight
+   * @property {string | null} diamond_color
+   * @property {string | null} diamond_clarity
+   * @property {string | null} barcode
+   * @property {string | null} cost_code
+   * @property {string | null} selling_point
+   */
+
+  /**
+   * @typedef {Object} CurrentUser
+   * @property {string} name
+   * @property {string} employeeCode
+   * @property {string} role
+   * @property {string} roleLabel
+   * @property {Position} position
+   */
+
+  /**
+   * @typedef {Object} Permissions
+   * @property {boolean} canViewDashboard
+   * @property {boolean} canViewTraining
+   * @property {boolean} canViewProducts
+   * @property {boolean} canViewTools
+   * @property {boolean} canViewAdmin
+   * @property {boolean} canManageProducts
+   * @property {boolean} canManageLessons
+   * @property {boolean} canViewCostCode
+   * @property {boolean} canUsePriceCalculator
+   * @property {boolean} canViewReports
+   */
+
+  /** @typedef {keyof Permissions} PermissionKey */
+
+  /**
+   * @typedef {Object} AccessRole
+   * @property {string} value
+   * @property {string} label
+   * @property {string} description
+   */
+
+  /**
+   * @typedef {Object} NavItem
+   * @property {string} id
+   * @property {string} label
+   * @property {string} number
+   * @property {PermissionKey} permission
+   */
+
   const API_URL = "http://127.0.0.1:8000";
 
   let currentPage = "dashboard";
+  let isAuthenticated = false;
 
-  /**
-   * @type {Array<{
-   *   id: number,
-   *   code: string,
-   *   name: string,
-   *   description: string | null
-   * }>}
-   */
+  let loginName = "";
+  let loginEmployeeCode = "";
+  let loginPositionId = "";
+  let loginRole = "sales";
+
+  /** @type {CurrentUser | null} */
+  let currentUser = null;
+
+  /** @type {Position[]} */
   let positions = [];
 
-  /**
-   * @type {Array<{
-   *   id: number,
-   *   position_id: number,
-   *   title: string,
-   *   description: string | null,
-   *   step_order: number,
-   *   is_active: boolean
-   * }>}
-   */
+  /** @type {Lesson[]} */
   let lessons = [];
 
-  /**
-   * @type {Array<{
-   *   id: number,
-   *   name: string,
-   *   category: string | null,
-   *   diamond_carat: number | null,
-   *   diamond_count: number | null,
-   *   material: string | null,
-   *   gold_type: string | null,
-   *   gold_weight: number | null,
-   *   diamond_color: string | null,
-   *   diamond_clarity: string | null,
-   *   barcode: string | null,
-   *   cost_code: string | null,
-   *   selling_point: string | null
-   * }>}
-   */
+  /** @type {Product[]} */
   let products = [];
 
-  /**
-   * @type {{
-   *   id: number,
-   *   code: string,
-   *   name: string,
-   *   description: string | null
-   * } | null}
-   */
+  /** @type {Position | null} */
   let selectedPosition = null;
+
+  /** @type {AccessRole[]} */
+  const accessRoles = [
+    {
+      value: "trainee",
+      label: "Trainee",
+      description: "พนักงานใหม่ เห็น Training และ Product Knowledge แบบอ่านอย่างเดียว"
+    },
+    {
+      value: "sales",
+      label: "Sales Staff",
+      description: "พนักงานขาย เห็น Training, Products และ Tools"
+    },
+    {
+      value: "supervisor",
+      label: "Supervisor",
+      description: "หัวหน้าทีมขาย เห็นภาพรวมและเครื่องมือสำหรับทีม"
+    },
+    {
+      value: "admin",
+      label: "Admin / Training Manager",
+      description: "จัดการสินค้า บทเรียน ตำแหน่ง และข้อมูลหลังบ้าน"
+    },
+    {
+      value: "owner",
+      label: "Owner / Management",
+      description: "ดูภาพรวมระดับผู้บริหาร เน้น Dashboard และ Reports"
+    }
+  ];
+
+  /** @type {NavItem[]} */
+  const navItems = [
+    { id: "dashboard", label: "Dashboard", number: "01", permission: "canViewDashboard" },
+    { id: "training", label: "Training", number: "02", permission: "canViewTraining" },
+    { id: "products", label: "Products", number: "03", permission: "canViewProducts" },
+    { id: "tools", label: "Tools", number: "04", permission: "canViewTools" },
+    { id: "admin", label: "Admin", number: "05", permission: "canViewAdmin" }
+  ];
+
+  /**
+   * @param {string} role
+   * @returns {Permissions}
+   */
+  function getPermissions(role) {
+    const base = {
+      canViewDashboard: true,
+      canViewTraining: true,
+      canViewProducts: true,
+      canViewTools: false,
+      canViewAdmin: false,
+      canManageProducts: false,
+      canManageLessons: false,
+      canViewCostCode: false,
+      canUsePriceCalculator: false,
+      canViewReports: false
+    };
+
+    if (role === "trainee") {
+      return base;
+    }
+
+    if (role === "sales") {
+      return {
+        ...base,
+        canViewTools: true,
+        canUsePriceCalculator: true
+      };
+    }
+
+    if (role === "supervisor") {
+      return {
+        ...base,
+        canViewTools: true,
+        canViewCostCode: true,
+        canUsePriceCalculator: true,
+        canViewReports: true
+      };
+    }
+
+    if (role === "admin") {
+      return {
+        canViewDashboard: true,
+        canViewTraining: true,
+        canViewProducts: true,
+        canViewTools: true,
+        canViewAdmin: true,
+        canManageProducts: true,
+        canManageLessons: true,
+        canViewCostCode: true,
+        canUsePriceCalculator: true,
+        canViewReports: true
+      };
+    }
+
+    if (role === "owner") {
+      return {
+        ...base,
+        canViewTools: true,
+        canViewCostCode: true,
+        canUsePriceCalculator: true,
+        canViewReports: true
+      };
+    }
+
+    return base;
+  }
+
+  /** @type {Permissions} */
+  $: permissions = getPermissions(currentUser?.role || loginRole);
+
+  /** @type {NavItem[]} */
+  $: visibleNavItems = navItems.filter((item) => permissions[item.permission]);
+
+  /** @type {Position | null} */
+  $: loginPosition =
+    positions.find((position) => String(position.id) === String(loginPositionId)) || null;
+
+  /** @type {AccessRole} */
+  $: selectedAccessRole =
+    accessRoles.find((role) => role.value === loginRole) || accessRoles[1];
 
   async function loadPositions() {
     const response = await fetch(`${API_URL}/positions`);
-    positions = await response.json();
+    /** @type {Position[]} */
+    const data = await response.json();
+    positions = data;
   }
 
   async function loadProducts() {
     const response = await fetch(`${API_URL}/products`);
-    products = await response.json();
+    /** @type {Product[]} */
+    const data = await response.json();
+    products = data;
   }
 
   /**
-   * @param {{
-   *   id: number,
-   *   code: string,
-   *   name: string,
-   *   description: string | null
-   * }} position
+   * @param {Position} position
    */
   async function loadLessonsByPosition(position) {
     selectedPosition = position;
 
     const response = await fetch(`${API_URL}/positions/${position.id}/lessons`);
-    lessons = await response.json();
+    /** @type {Lesson[]} */
+    const data = await response.json();
+    lessons = data;
   }
 
   async function refreshAllData() {
@@ -101,145 +267,409 @@
     currentPage = page;
   }
 
+  async function enterAcademy() {
+    if (!loginName.trim()) {
+      alert("กรุณากรอกชื่อพนักงาน");
+      return;
+    }
+
+    if (!loginPosition) {
+      alert("กรุณาเลือก Position");
+      return;
+    }
+
+    currentUser = {
+      name: loginName.trim(),
+      employeeCode: loginEmployeeCode.trim(),
+      role: loginRole,
+      roleLabel: selectedAccessRole.label,
+      position: loginPosition
+    };
+
+    await loadLessonsByPosition(loginPosition);
+
+    isAuthenticated = true;
+    currentPage = "training";
+  }
+
+  function switchUser() {
+    isAuthenticated = false;
+    currentUser = null;
+    selectedPosition = null;
+    lessons = [];
+    currentPage = "dashboard";
+  }
+
   loadPositions();
   loadProducts();
 </script>
 
-<div class="app-shell">
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="logo-frame">
+{#if !isAuthenticated}
+  <section class="access-page">
+    <div class="access-visual">
+      <div class="access-logo-top">
         <img src="/brand/bg-logo.png" alt="Beauty Gems logo" />
       </div>
 
-      <div class="brand-text">
-        <p>Beauty Gems</p>
-        <h1>Sales Academy</h1>
+      <div class="access-visual-content">
+        <span>Beauty Gems Sales Academy</span>
+        <h1>Luxury Training Access</h1>
+        <p>
+          ระบบฝึกอบรมพนักงานขายเครื่องประดับแบบ Role-Based
+          เลือกตัวตน ตำแหน่ง และสิทธิ์การใช้งานก่อนเข้าสู่ Academy
+        </p>
       </div>
     </div>
 
-    <nav class="nav">
-      <button class:active={currentPage === "dashboard"} on:click={() => goTo("dashboard")}>
-        <span>01</span> Dashboard
-      </button>
+    <div class="access-panel">
+      <div class="access-header">
+        <span>Secure Academy Portal</span>
+        <h2>Enter Academy</h2>
+        <p>
+          กรอกข้อมูลพนักงาน เลือก Position และ Access Role
+          เพื่อเข้าสู่หน้าที่เหมาะกับสิทธิ์ของผู้ใช้งาน
+        </p>
+      </div>
 
-      <button class:active={currentPage === "training"} on:click={() => goTo("training")}>
-        <span>02</span> Training
-      </button>
+      <div class="access-form">
+        <label for="loginName">Employee Name</label>
+        <input
+          id="loginName"
+          bind:value={loginName}
+          placeholder="เช่น Mint / Beam / Sales Team A"
+        />
 
-      <button class:active={currentPage === "products"} on:click={() => goTo("products")}>
-        <span>03</span> Products
-      </button>
+        <label for="loginEmployeeCode">Employee ID / Nickname</label>
+        <input
+          id="loginEmployeeCode"
+          bind:value={loginEmployeeCode}
+          placeholder="เช่น S001 หรือปล่อยว่างได้"
+        />
 
-      <button class:active={currentPage === "tools"} on:click={() => goTo("tools")}>
-        <span>04</span> Tools
-      </button>
+        <label for="loginPosition">Position</label>
+        <select id="loginPosition" bind:value={loginPositionId}>
+          <option value="">-- Select Position --</option>
+          {#each positions as position}
+            <option value={String(position.id)}>
+              {position.name} ({position.code})
+            </option>
+          {/each}
+        </select>
 
-      <button class:active={currentPage === "admin"} on:click={() => goTo("admin")}>
-        <span>05</span> Admin
-      </button>
-    </nav>
+        <label for="loginRole">Access Role</label>
+        <select id="loginRole" bind:value={loginRole}>
+          {#each accessRoles as role}
+            <option value={role.value}>{role.label}</option>
+          {/each}
+        </select>
 
-    <div class="sidebar-footer">
-      <p>High Jewelry Training Portal</p>
-      <small>Internal System / Version 0.6</small>
+        <div class="role-preview">
+          <span>Access Preview</span>
+          <strong>{selectedAccessRole.label}</strong>
+          <p>{selectedAccessRole.description}</p>
+
+          {#if loginPosition}
+            <div class="position-chip">
+              Position: {loginPosition.name}
+            </div>
+          {/if}
+        </div>
+
+        <button type="button" class="enter-button" on:click={enterAcademy}>
+          Enter Academy
+        </button>
+      </div>
     </div>
-  </aside>
+  </section>
+{:else}
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo-frame">
+          <img src="/brand/bg-logo.png" alt="Beauty Gems logo" />
+        </div>
 
-  <main class="main">
-    <header class="topbar">
-      <div class="topbar-copy">
-        <p class="eyebrow">Beauty Gems Internal Academy</p>
-        <h2>
-          {currentPage === "dashboard" ? "Luxury Sales Training Portal" : ""}
-          {currentPage === "training" ? "Training Academy" : ""}
-          {currentPage === "products" ? "High Jewelry Product Knowledge" : ""}
-          {currentPage === "tools" ? "Sales Utility Tools" : ""}
-          {currentPage === "admin" ? "Back Office Management" : ""}
-        </h2>
+        <div class="brand-text">
+          <p>Beauty Gems</p>
+          <h1>Sales Academy</h1>
+        </div>
       </div>
 
-      <div class="status-pill">
-        <span></span>
-        API Online
+      <div class="user-card">
+        <span>Current User</span>
+        <strong>{currentUser?.name}</strong>
+        <p>{currentUser?.roleLabel}</p>
+        <small>{currentUser?.position.name}</small>
       </div>
-    </header>
 
-    <section class="page-motion">
-      {#if currentPage === "dashboard"}
-        <DashboardPage
-          {positions}
-          {products}
-          {lessons}
-          onNavigate={goTo}
-        />
-      {/if}
+      <nav class="nav">
+        {#each visibleNavItems as item}
+          <button
+            type="button"
+            class:active={currentPage === item.id}
+            on:click={() => goTo(item.id)}
+          >
+            <span>{item.number}</span> {item.label}
+          </button>
+        {/each}
+      </nav>
 
-      {#if currentPage === "training"}
-        <TrainingPage
-          {API_URL}
-          {positions}
-          {selectedPosition}
-          {lessons}
-          onSelectPosition={loadLessonsByPosition}
-          onDataChanged={refreshAllData}
-        />
-      {/if}
+      <div class="sidebar-footer">
+        <p>High Jewelry Training Portal</p>
+        <button type="button" class="switch-button" on:click={switchUser}>
+          Switch User
+        </button>
+      </div>
+    </aside>
 
-      {#if currentPage === "products"}
-        <ProductsPage
-          {API_URL}
-          {products}
-          onDataChanged={refreshAllData}
-        />
-      {/if}
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-copy">
+          <p class="eyebrow">Beauty Gems Internal Academy</p>
+          <h2>
+            {currentPage === "dashboard" ? "Luxury Sales Training Portal" : ""}
+            {currentPage === "training" ? "Training Academy" : ""}
+            {currentPage === "products" ? "High Jewelry Product Knowledge" : ""}
+            {currentPage === "tools" ? "Sales Utility Tools" : ""}
+            {currentPage === "admin" ? "Back Office Management" : ""}
+          </h2>
+        </div>
 
-      {#if currentPage === "tools"}
-        <ToolsPage {API_URL} />
-      {/if}
+        <div class="topbar-user">
+          <div>
+            <span>{currentUser?.roleLabel}</span>
+            <strong>{currentUser?.name}</strong>
+          </div>
 
-      {#if currentPage === "admin"}
-        <AdminPage
-          {API_URL}
-          {positions}
-          onDataChanged={refreshAllData}
-        />
-      {/if}
-    </section>
-  </main>
-</div>
+          <div class="status-pill">
+            <span></span>
+            API Online
+          </div>
+        </div>
+      </header>
+
+      <section class="page-motion">
+        {#if currentPage === "dashboard"}
+          <DashboardPage
+            {positions}
+            {products}
+            {lessons}
+            onNavigate={goTo}
+          />
+        {/if}
+
+        {#if currentPage === "training"}
+          <TrainingPage
+            {API_URL}
+            {selectedPosition}
+            {lessons}
+            {currentUser}
+            {permissions}
+            onDataChanged={refreshAllData}
+          />
+        {/if}
+
+        {#if currentPage === "products"}
+          <ProductsPage
+            {API_URL}
+            {products}
+            canManageProducts={permissions.canManageProducts}
+            onDataChanged={refreshAllData}
+          />
+        {/if}
+
+        {#if currentPage === "tools" && permissions.canViewTools}
+          <ToolsPage {API_URL} />
+        {/if}
+
+        {#if currentPage === "admin" && permissions.canViewAdmin}
+          <AdminPage
+            {API_URL}
+            {positions}
+            onDataChanged={refreshAllData}
+          />
+        {/if}
+      </section>
+    </main>
+  </div>
+{/if}
 
 <style>
-  :global(*) {
-    box-sizing: border-box;
-  }
-
-  :global(body) {
-    margin: 0;
+  .access-page {
     min-height: 100vh;
-    color: #201b18;
-    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(430px, 0.9fr);
     background:
-      radial-gradient(circle at 15% 10%, rgba(220, 225, 230, 0.42), transparent 28%),
-      radial-gradient(circle at 88% 88%, rgba(94, 24, 38, 0.13), transparent 28%),
-      linear-gradient(135deg, #080808 0%, #151515 34%, #f3f1ed 34%, #faf9f6 100%);
+      radial-gradient(circle at top left, rgba(95, 29, 43, 0.16), transparent 24%),
+      linear-gradient(135deg, #070707 0%, #111 42%, #f6f3ef 42%, #faf8f5 100%);
   }
 
-  :global(h1),
-  :global(h2),
-  :global(h3) {
-    font-family: "Georgia", "Times New Roman", serif;
-    letter-spacing: -0.03em;
+  .access-visual {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    padding: clamp(34px, 5vw, 70px);
+    background:
+      linear-gradient(90deg, rgba(5, 5, 5, 0.9), rgba(5, 5, 5, 0.45), rgba(5, 5, 5, 0.2)),
+      url("/brand/hero-jewelry.jpg");
+    background-size: cover;
+    background-position: center;
+    color: white;
+  }
+  .access-logo-top {
+    position: absolute;
+    top: 42px;
+    left: 42px;
+    z-index: 5;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 
-  :global(p) {
-    line-height: 1.75;
+  .access-logo-top img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .access-visual::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 22% 18%, rgba(255,255,255,0.22), transparent 20%),
+      linear-gradient(180deg, transparent, rgba(0,0,0,0.32));
+    pointer-events: none;
+  }
+
+  .access-visual-content {
+    position: relative;
+    z-index: 2;
+    max-width: 760px;
+  }
+
+  .access-visual-content span,
+  .access-header span,
+  .role-preview span,
+  .user-card span,
+  .topbar-user span {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2.8px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .access-visual-content span {
+    color: rgba(255,255,255,0.7);
+  }
+
+  .access-visual-content h1 {
+    margin: 0 0 18px;
+    font-size: clamp(48px, 6vw, 86px);
+    line-height: 0.95;
+    color: white;
+    font-weight: 500;
+  }
+
+  .access-visual-content p {
+    max-width: 650px;
+    color: rgba(255,255,255,0.82);
+    line-height: 1.9;
+    font-size: 17px;
+  }
+
+  .access-panel {
+    padding: clamp(28px, 4vw, 56px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background:
+      radial-gradient(circle at top right, rgba(95,29,43,0.07), transparent 30%),
+      linear-gradient(135deg, rgba(255,255,255,0.96), rgba(247,245,241,0.92));
+  }
+
+  .access-header {
+    margin-bottom: 26px;
+  }
+
+  .access-header span {
+    color: #5f1d2b;
+  }
+
+  .access-header h2 {
+    margin: 0 0 12px;
+    font-size: clamp(38px, 4vw, 62px);
+    line-height: 1.02;
+    font-weight: 500;
+  }
+
+  .access-header p {
+    color: #6f655d;
+    line-height: 1.85;
+    max-width: 620px;
+  }
+
+  .access-form {
+    padding: 28px;
+    border-radius: 30px;
+    background: rgba(255,255,255,0.78);
+    border: 1px solid rgba(20,20,20,0.08);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.08);
+  }
+
+  .role-preview {
+    margin: 8px 0 18px;
+    padding: 20px;
+    border-radius: 24px;
+    background: #111;
+    color: white;
+  }
+
+  .role-preview span {
+    color: rgba(255,255,255,0.58);
+  }
+
+  .role-preview strong {
+    display: block;
+    font-family: Georgia, serif;
+    font-size: 30px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .role-preview p {
+    color: rgba(255,255,255,0.72);
+    line-height: 1.7;
+  }
+
+  .position-chip {
+    display: inline-flex;
+    margin-top: 14px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-size: 13px;
+  }
+
+  .enter-button {
+    width: 100%;
+    min-height: 58px;
+    font-size: 16px;
   }
 
   .app-shell {
     min-height: 100vh;
     display: grid;
-    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-columns: 310px minmax(0, 1fr);
   }
 
   .sidebar {
@@ -247,9 +677,7 @@
     position: sticky;
     top: 0;
     padding: 28px 24px;
-    background:
-      linear-gradient(180deg, rgba(7, 7, 7, 0.98), rgba(24, 22, 21, 0.98)),
-      radial-gradient(circle at top, rgba(205, 212, 218, 0.16), transparent 34%);
+    background: linear-gradient(180deg, rgba(7, 7, 7, 0.98), rgba(24, 22, 21, 0.98));
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     color: #f8f6f1;
     display: flex;
@@ -260,7 +688,7 @@
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-bottom: 42px;
+    margin-bottom: 24px;
     min-width: 0;
   }
 
@@ -270,7 +698,6 @@
     flex: 0 0 auto;
     border-radius: 18px;
     background: #f8f6f1;
-    border: 1px solid rgba(255, 255, 255, 0.42);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -285,10 +712,6 @@
     object-fit: contain;
   }
 
-  .brand-text {
-    min-width: 0;
-  }
-
   .brand p {
     margin: 0;
     color: #c9cdd2;
@@ -300,10 +723,37 @@
 
   .brand h1 {
     margin: 4px 0 0;
-    font-size: clamp(18px, 2vw, 23px);
+    font-size: 23px;
     font-weight: 400;
-    white-space: normal;
     line-height: 1.1;
+  }
+
+  .user-card {
+    padding: 18px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 24px;
+  }
+
+  .user-card span {
+    color: rgba(255,255,255,0.54);
+  }
+
+  .user-card strong {
+    display: block;
+    font-size: 24px;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+
+  .user-card p {
+    margin: 0 0 6px;
+    color: rgba(255,255,255,0.78);
+  }
+
+  .user-card small {
+    color: rgba(255,255,255,0.54);
   }
 
   .nav {
@@ -314,14 +764,13 @@
 
   .nav button {
     width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.035);
     color: #f8f6f1;
     padding: 14px 16px;
     border-radius: 16px;
     text-align: left;
     cursor: pointer;
-    transition: all 0.22s ease;
     box-shadow: none;
     margin: 0;
   }
@@ -348,18 +797,25 @@
   .sidebar-footer {
     margin-top: auto;
     padding-top: 22px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255,255,255,0.1);
   }
 
   .sidebar-footer p {
-    margin: 0 0 6px;
+    margin: 0 0 12px;
     color: #f8f6f1;
     font-size: 13px;
   }
 
-  .sidebar-footer small {
-    color: #aeb4ba;
-    font-size: 12px;
+  .switch-button {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    color: white;
+    box-shadow: none;
+  }
+
+  .switch-button:hover {
+    background: white;
+    color: #111;
   }
 
   .main {
@@ -369,9 +825,8 @@
 
   .topbar {
     min-height: 104px;
-    background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(246, 245, 242, 0.84));
-    border: 1px solid rgba(30, 30, 30, 0.08);
+    background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(246,245,242,0.86));
+    border: 1px solid rgba(30,30,30,0.08);
     border-radius: 28px;
     padding: 22px 26px;
     margin-bottom: 24px;
@@ -379,16 +834,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(18px);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.08);
   }
 
-  .topbar-copy {
-    min-width: 0;
-  }
-
-  .eyebrow,
-  :global(.eyebrow) {
+  .eyebrow {
     margin: 0 0 8px;
     font-size: 11px;
     text-transform: uppercase;
@@ -403,22 +852,35 @@
     line-height: 1.12;
     font-weight: 400;
     color: #151515;
-    overflow-wrap: anywhere;
+  }
+
+  .topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .topbar-user span {
+    margin-bottom: 4px;
+    color: #5e1826;
+    font-size: 10px;
+  }
+
+  .topbar-user strong {
+    font-size: 15px;
   }
 
   .status-pill {
-    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 9px;
     padding: 10px 14px;
     border-radius: 999px;
     background: #ffffff;
-    border: 1px solid rgba(30, 30, 30, 0.08);
+    border: 1px solid rgba(30,30,30,0.08);
     color: #333;
     font-size: 13px;
     font-weight: 700;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.05);
   }
 
   .status-pill span {
@@ -426,113 +888,18 @@
     height: 9px;
     border-radius: 50%;
     background: #2fbf71;
-    box-shadow: 0 0 0 5px rgba(47, 191, 113, 0.13);
+    box-shadow: 0 0 0 5px rgba(47,191,113,0.13);
   }
 
-  .page-motion {
-    animation: fadeUp 0.45s ease both;
-  }
-
-  :global(.card) {
-    background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(247, 246, 243, 0.9));
-    border: 1px solid rgba(30, 30, 30, 0.08);
-    border-radius: 28px;
-    padding: clamp(20px, 3vw, 28px);
-    margin-bottom: 24px;
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.07);
-  }
-
-  :global(.grid) {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 18px;
-  }
-
-  :global(input),
-  :global(textarea),
-  :global(select) {
-    width: 100%;
-    max-width: 620px;
-    display: block;
-    padding: 14px 15px;
-    margin: 8px 0 16px;
-    border-radius: 14px;
-    border: 1px solid rgba(30, 30, 30, 0.12);
-    background: rgba(255, 255, 255, 0.9);
-    color: #201b18;
-    outline: none;
-  }
-
-  :global(textarea) {
-    min-height: 96px;
-    resize: vertical;
-  }
-
-  :global(input:focus),
-  :global(textarea:focus),
-  :global(select:focus) {
-    border-color: #5e1826;
-    box-shadow: 0 0 0 4px rgba(94, 24, 38, 0.1);
-  }
-
-  :global(label) {
-    display: block;
-    margin-top: 12px;
-    color: #201b18;
-    font-weight: 700;
-    font-size: 14px;
-  }
-
-  :global(button) {
-    border: none;
-    border-radius: 999px;
-    padding: 12px 18px;
-    margin-right: 8px;
-    margin-top: 8px;
-    cursor: pointer;
-    color: #fff;
-    background: #151515;
-    font-weight: 700;
-    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.16);
-    transition: all 0.22s ease;
-  }
-
-  :global(button:hover) {
-    transform: translateY(-2px);
-    background: #5e1826;
-    box-shadow: 0 18px 34px rgba(94, 24, 38, 0.18);
-  }
-
-  :global(.secondary-button) {
-    background: #f8f6f1;
-    color: #151515;
-    border: 1px solid rgba(30, 30, 30, 0.1);
-  }
-
-  :global(.secondary-button:hover) {
-    background: #e9e6df;
-    color: #151515;
-  }
-
-  :global(.danger-button) {
-    background: #8e2b2b;
-    color: white;
-  }
-
-  @keyframes fadeUp {
-    from {
-      opacity: 0;
-      transform: translateY(14px);
+  @media (max-width: 1080px) {
+    .access-page {
+      grid-template-columns: 1fr;
     }
 
-    to {
-      opacity: 1;
-      transform: translateY(0);
+    .access-visual {
+      min-height: 420px;
     }
-  }
 
-  @media (max-width: 960px) {
     .app-shell {
       grid-template-columns: 1fr;
     }
@@ -547,23 +914,72 @@
       grid-template-columns: repeat(2, 1fr);
     }
 
-    .main {
-      padding: 18px;
-    }
-
     .topbar {
       flex-direction: column;
       align-items: flex-start;
     }
   }
 
-  @media (max-width: 560px) {
+  @media (max-width: 640px) {
+    .access-logo-top {
+      top: 24px !important;
+      left: 24px !important;
+      width: 90px !important;
+      height: 90px !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+    .access-panel,
+    .access-visual {
+      padding: 24px;
+    }
+
+    .access-form {
+      padding: 20px;
+    }
+
+    .main {
+      padding: 18px;
+    }
+
     .nav {
       grid-template-columns: 1fr;
     }
-
-    .brand {
-      align-items: flex-start;
-    }
   }
+  /* FORCE REMOVE LOGIN LOGO FRAME */
+.access-logo-top {
+  position: absolute !important;
+  top: 42px !important;
+  left: 42px !important;
+  z-index: 5 !important;
+
+  width: 120px !important;
+  height: 120px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.access-logo-top img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
 </style>

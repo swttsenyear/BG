@@ -1,18 +1,7 @@
 <script>
-  import PositionList from "../components/PositionList.svelte";
   import TrainingPath from "../components/TrainingPath.svelte";
 
   export let API_URL = "";
-
-  /**
-   * @type {Array<{
-   *   id: number,
-   *   code: string,
-   *   name: string,
-   *   description: string | null
-   * }>}
-   */
-  export let positions = [];
 
   /**
    * @type {{
@@ -37,64 +26,95 @@
   export let lessons = [];
 
   /**
-   * @type {(position: {
-   *   id: number,
-   *   code: string,
+   * @type {{
    *   name: string,
-   *   description: string | null
-   * }) => void}
+   *   employeeCode: string,
+   *   role: string,
+   *   roleLabel: string,
+   *   position: {
+   *     id: number,
+   *     code: string,
+   *     name: string,
+   *     description: string | null
+   *   }
+   * } | null}
    */
-  export let onSelectPosition;
+  export let currentUser = null;
+
+  /**
+   * @type {{
+   *   canViewDashboard: boolean,
+   *   canViewTraining: boolean,
+   *   canViewProducts: boolean,
+   *   canViewTools: boolean,
+   *   canViewAdmin: boolean,
+   *   canManageProducts: boolean,
+   *   canManageLessons: boolean,
+   *   canViewCostCode: boolean,
+   *   canUsePriceCalculator: boolean,
+   *   canViewReports: boolean
+   * }}
+   */
+  export let permissions = {
+    canViewDashboard: true,
+    canViewTraining: true,
+    canViewProducts: true,
+    canViewTools: false,
+    canViewAdmin: false,
+    canManageProducts: false,
+    canManageLessons: false,
+    canViewCostCode: false,
+    canUsePriceCalculator: false,
+    canViewReports: false
+  };
 
   /** @type {() => void} */
-  export let onDataChanged;
+  export let onDataChanged = () => {};
 </script>
 
-<section class="page-hero">
-  <p class="eyebrow">Training Academy</p>
-  <h1>Build service excellence through structured learning.</h1>
-  <p>
-    เลือกตำแหน่งงานของพนักงาน แล้วระบบจะแสดงเส้นทางการสอนงานแบบ Step by Step
-    เพื่อให้พนักงานใหม่เรียนรู้ได้เป็นมาตรฐานเดียวกัน
-  </p>
+<section class="page-block">
+  <section class="training-user-bar">
+    <div>
+      <span class="section-kicker">Training Access</span>
+      <h2>{currentUser?.name || "Unknown User"}</h2>
+      <p>
+        Role: <strong>{currentUser?.roleLabel || "-"}</strong>
+        · Position: <strong>{selectedPosition?.name || "-"}</strong>
+      </p>
+    </div>
+  </section>
+
+  <TrainingPath
+    {API_URL}
+    {selectedPosition}
+    {lessons}
+    canManageLessons={permissions.canManageLessons}
+    {onDataChanged}
+  />
 </section>
 
-<PositionList
-  {API_URL}
-  {positions}
-  {onSelectPosition}
-  {onDataChanged}
-/>
-
-<TrainingPath
-  {API_URL}
-  {selectedPosition}
-  {lessons}
-  {onDataChanged}
-/>
-
 <style>
-  .page-hero {
+  .training-user-bar {
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 246, 225, 0.86)),
-      radial-gradient(circle at top right, rgba(202, 167, 89, 0.22), transparent 34%);
-    border: 1px solid rgba(202, 167, 89, 0.25);
-    border-radius: 30px;
-    padding: 30px;
-    margin-bottom: 26px;
-    box-shadow: 0 18px 50px rgba(36, 26, 16, 0.08);
+      linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 246, 242, 0.92));
+    border: 1px solid rgba(20, 20, 20, 0.08);
+    border-radius: 32px;
+    padding: clamp(24px, 3vw, 34px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.07);
   }
 
-  .page-hero h1 {
-    margin: 0 0 14px;
-    font-size: 42px;
-    font-weight: normal;
-    max-width: 840px;
+  .training-user-bar h2 {
+    margin: 0 0 8px;
+    font-size: clamp(34px, 4vw, 56px);
+    line-height: 1.05;
   }
 
-  .page-hero p {
-    color: #6c5a47;
-    line-height: 1.8;
-    max-width: 820px;
+  .training-user-bar p {
+    color: #6f655d;
+    line-height: 1.7;
+  }
+
+  .training-user-bar strong {
+    color: #1d1a17;
   }
 </style>

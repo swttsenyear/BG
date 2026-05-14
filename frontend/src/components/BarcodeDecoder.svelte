@@ -14,6 +14,8 @@
   let decodeResult = null;
 
   async function decodeBarcode() {
+    if (!code.trim()) return;
+
     const response = await fetch(`${API_URL}/barcode/decode`, {
       method: "POST",
       headers: {
@@ -28,9 +30,14 @@
   }
 </script>
 
-<section class="card">
-  <h2>Barcode Decoder</h2>
-  <p>ใส่รหัสต้นทุน เช่น AFJ เพื่อแปลงเป็นตัวเลข</p>
+<div class="decoder">
+  <div class="section-head">
+    <span class="section-kicker">Tool 01</span>
+    <h3>Barcode Decoder</h3>
+    <p>
+      ใส่รหัสต้นทุน เช่น AFJ เพื่อแปลงตัวอักษรเป็นตัวเลขที่ใช้ในการคำนวณต้นทุน
+    </p>
+  </div>
 
   <label for="barcodeCode">รหัสต้นทุน</label>
   <input
@@ -42,27 +49,50 @@
   <button type="button" on:click={decodeBarcode}>ถอดรหัส</button>
 
   {#if decodeResult}
-    <div class="result">
-      <h3>ผลลัพธ์</h3>
+    <div class="result-box">
       <p><strong>รหัส:</strong> {decodeResult.input_code}</p>
-      <p><strong>ตัวเลข:</strong> {decodeResult.decoded_number}</p>
+      <p>
+        <strong>ตัวเลข:</strong>
+        <span class="metric">{decodeResult.decoded_number}</span>
+      </p>
 
-      {#each decodeResult.details as detail}
-        <p>{detail}</p>
-      {/each}
+      <div class="detail-list">
+        {#each decodeResult.details as detail}
+          <span>{detail}</span>
+        {/each}
+      </div>
     </div>
   {/if}
-</section>
+</div>
 
 <style>
-  h2 {
-    margin-top: 0;
+  .decoder {
+    min-width: 0;
   }
 
-  .result {
-    margin-top: 18px;
-    padding: 16px;
-    background: #f6f2eb;
-    border-radius: 12px;
+  .section-head h3 {
+    font-size: clamp(26px, 3vw, 38px);
+    margin-bottom: 8px;
+  }
+
+  .section-head p {
+    max-width: 620px;
+  }
+
+  .detail-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .detail-list span {
+    display: inline-flex;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(30, 26, 23, 0.08);
+    font-size: 13px;
+    color: #4d4540;
   }
 </style>
